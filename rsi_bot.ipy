@@ -1,0 +1,82 @@
+from ib_insync import *
+import datetime
+import numpy as np
+
+# Connect to IB
+ib = IB()
+ib.connect('127.0.0.1', 7497, clientId=1)
+
+# Define the contract
+contract = Contract()
+contract.symbol = 'BTC'
+contract.secType = 'CRYPTO'
+contract.exchange = 'PAXOS'
+contract.currency = 'USD'
+
+# Function to calculate RSI
+def calculate_rsi(prices, period=14):
+    deltas = np.diff(prices)
+    seed = deltas[:period+1]
+    up = seed[seed >= 0].sum()/period
+    down = -seed[seed < 0].sum()/period
+    rs = up/down
+    rsi = np.zeros_like(prices)
+    rsi[:period] = 100. - 100./(1. + rs)
+
+    for i in range(period, len(prices)):
+        delta = deltas[i - 1]  # cause the diff is 1 shorter
+
+        if delta > 0:
+            upval = delta
+            downval = 0.
+        else:
+            upval = 0.
+            downval = -delta
+
+        up = (up*(period - 1) + upval)/period
+        down = (down*(period - 1) + downval)/period
+
+        rs = up/down
+        rsi[i] = 100. - 100./(1. + rs)
+
+    return rsi
+
+# Function to place an order
+def place_order(action, order_size):
+    order = MarketOrder(action, order_size)
+    trade = ib.placeOrder(contract, order)
+    print(f"Order placed: {trade}")
+
+# Function to check if market is open
+def is_market_open():
+    current_time = datetime.datetime.now().time()
+    market_open_time = datetime.time(10, 30)  # 10:30 AM
+    return current_time >= market_open_time
+
+# Main loop
+while True:
+    if is_market_open():
+        ticker = ib.reqMktData(contract)
+        ib.sleep(1)  # Wait for the market data to be updated
+        btc_price = ticker.marketPrice()
+        
+        # Fetch historical data for RSI calculation
+        bars = ib.reqHistoricalData(
+            contract, endDateTime='', durationStr='1 D',
+            barSizeSetting='1 min', whatToShow='MIDPOINT', useRTH=True)
+        prices = [bar.close for bar in bars]
+        
+        if len(prices) >= 14:
+            rsi = calculate_rsi(prices)[-1]
+            order_size = 10 / btc_price
+            
+            if rsi < 70:
+                place_order('BUY', order_size)
+            elif rsi > 70:
+                place_order('SELL', order_size)
+        
+        break
+    ib.sleep(60)  # Check every minute
+
+# Disconnect from IB
+ib.disconnect()
