@@ -13,3 +13,14 @@ Bot
 	3.3 Set Reverse parameter
 		- e.g. 1.5 SD of the spread away from mean
 	3.4 Backtest
+4. Meme trading
+	- One bot monitor which new ico meme
+	- One bot monitor market sentiment in twitter
+ - Calculate the market sentiment
+	- Take profit when double
+5. Risk factor
+	- Use MVRV or other indicators in coinglass to plot the risk factor for BTC
+6. Liquidity pool
+	- Uniswap for liquidity pool
+ - Hedge principal by option
+ - Hedge interest by restaking
